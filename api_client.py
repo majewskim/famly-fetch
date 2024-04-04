@@ -1,9 +1,12 @@
+"""Module for interacting with the Famly API."""
+
 import json
 import urllib.request
 
 
 class ApiClient:
 
+    """Class for interacting with the Famly API."""
     _access_token = None
     _base = "https://app.famly.co"
 
@@ -19,10 +22,10 @@ class ApiClient:
             Exception: If the server returns a non-200 HTTP status code.
         """
 
-        with open('authenticate_query.graphql', 'r') as file:
+        with open('authenticate_query.graphql', 'r',encoding="utf-8") as file:
             query = file.read()
-            
-        postBody = {
+
+        post_body = {
             "operationName": "Authenticate",
             "variables": {
                 "email": email,
@@ -36,7 +39,7 @@ class ApiClient:
         login_data = self.make_api_request(
             "POST",
             "/graphql?Authenticate",
-            body=postBody,
+            body=post_body,
         )
 
         self._access_token = login_data["data"]["me"]["authenticateWithPassword"]["accessToken"]
@@ -49,7 +52,8 @@ class ApiClient:
             method (str): The HTTP method to use for the request (e.g., "GET", "POST").
             path (str): The path of the API endpoint (e.g., "/graphql?Authenticate").
             body (dict, optional): The body of the request. Defaults to None.
-            params (dict, optional): The query parameters to include in the request. Defaults to None.
+            params (dict, optional): The query parameters to include in the request.
+            Defaults to None.
 
         Returns:
             dict: The JSON response from the server.
@@ -80,12 +84,13 @@ class ApiClient:
             with urllib.request.urlopen(req) as f:
                 body = f.read().decode("utf-8")
                 if f.status != 200:
-                    raise "B0rked! %" % body
+                    raise f"B0rked! {body}"
 
                 try:
                     return json.loads(body)
-                except Exception as e:
-                    return body
+                except json.JSONDecodeError:
+                    print("Could not parse JSON")
+
         except urllib.error.HTTPError as e:
             # The server couldn't fulfill the request
             print('Error code: ', e.code)

@@ -22,47 +22,42 @@ from PIL import Image
 from api_client import ApiClient
 
 class FamlyDownloader:
+    """Class for downloading images from Famly."""
 
     def __init__(self, email, password):
         self._pictures_folder = "pictures"
-        self._apiClient = ApiClient()
-        self._apiClient.login(email, password)
-    
+        self.api_client = ApiClient()
+        self.api_client.login(email, password)
+
     def download_images_by_child_id(self, child_id, first_name):
         """Download images by childId"""
-        imgs = self._apiClient.make_api_request(
+        imgs = self.api_client.make_api_request(
             "GET", "/api/v2/images/tagged", params={"childId": child_id}
         )
 
-        print("Fetching %s images for %s" % (len(imgs), first_name))
+        print(f"Fetching {len(imgs)} images for {first_name}")
 
         for img_no, img in enumerate(imgs, start=1):
-            print(" - image {} ({}/{})".format(img["imageId"], img_no, len(imgs)))
+            print(f" - image {img['imageId']} ({img_no}/{len(imgs)})")
 
             # This is constructed from very few examples - I might be asking it
             # to crop things it should not...
-            url = "%s/%sx%s/%s" % (
-                img["prefix"],
-                img["height"],
-                img["width"],
-                img["key"],
-            )
+            url = f"{img['prefix']}{img['height']}{img['width']}{img['key']}"
 
             # sleep for 1s to avoid 400 errors
             time.sleep(1)
 
             req = urllib.request.Request(url=url)
 
-            captured_date = datetime.fromisoformat(img["createdAt"]).strftime("%d-%m-%Y-%H-%M-%S")
-            captured_date_for_exif = datetime.fromisoformat(img["createdAt"]).strftime("%Y:%m:%d %H:%M:%S")
+            created_at = img["createdAt"]
+            captured_date = datetime.fromisoformat(created_at).strftime("%d-%m-%Y-%H-%M-%S")
+            captured_date_exif = datetime.fromisoformat(created_at).strftime("%Y:%m:%d %H:%M:%S")
 
-            filename = os.path.join(self._pictures_folder, "{}-{}.jpg".format(
-                first_name, captured_date)
-            )
+            filename = os.path.join(self._pictures_folder, f"{first_name}-{captured_date}.jpg")
 
             with urllib.request.urlopen(req) as r, open(filename, "wb") as f:
                 if r.status != 200:
-                    raise "B0rked! %s" % r.read().decode("utf-8")
+                    raise f"B0rked! {r.read().decode('utf-8')}"
                 shutil.copyfileobj(r, f)
 
             # write DateTimeOriginal to the image
@@ -70,7 +65,7 @@ class FamlyDownloader:
             saved_img = Image.open(filename)
 
             # Prepare the EXIF data
-            exif_dict = {"Exif": {piexif.ExifIFD.DateTimeOriginal: captured_date_for_exif.encode()}}
+            exif_dict = {"Exif": {piexif.ExifIFD.DateTimeOriginal: captured_date_exif.encode()}}
             exif_bytes = piexif.dump(exif_dict)
 
             # Write the EXIF data to the image
@@ -88,7 +83,7 @@ if __name__ == "__main__":
     # Create the downloader
     famly_downloader = FamlyDownloader(args.email, args.password)
 
-    my_info = famly_downloader._apiClient.me_me_me()
+    my_info = famly_downloader.api_client.me_me_me()
 
 
     # Current children
